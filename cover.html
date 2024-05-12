@@ -1,0 +1,994 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>manager: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">github.com/central-university-dev/2024-spring-ab-go-hw-3-vlasashk/internal/server/adapters/manager/manager.go (76.7%)</option>
+				
+				<option value="file1">github.com/central-university-dev/2024-spring-ab-go-hw-3-vlasashk/internal/server/adapters/rediska/client.go (85.7%)</option>
+				
+				<option value="file2">github.com/central-university-dev/2024-spring-ab-go-hw-3-vlasashk/internal/server/ports/httpchi/handlers.go (73.8%)</option>
+				
+				<option value="file3">github.com/central-university-dev/2024-spring-ab-go-hw-3-vlasashk/internal/server/ports/httpchi/router.go (100.0%)</option>
+				
+				<option value="file4">github.com/central-university-dev/2024-spring-ab-go-hw-3-vlasashk/internal/server/resources/resources.go (77.8%)</option>
+				
+				<option value="file5">github.com/central-university-dev/2024-spring-ab-go-hw-3-vlasashk/internal/server/server.go (63.6%)</option>
+				
+				<option value="file6">github.com/central-university-dev/2024-spring-ab-go-hw-3-vlasashk/internal/storage/adapters/pgrepo/connection.go (76.5%)</option>
+				
+				<option value="file7">github.com/central-university-dev/2024-spring-ab-go-hw-3-vlasashk/internal/storage/adapters/pgrepo/repo.go (81.8%)</option>
+				
+				<option value="file8">github.com/central-university-dev/2024-spring-ab-go-hw-3-vlasashk/internal/storage/adapters/processor/processor.go (40.9%)</option>
+				
+				<option value="file9">github.com/central-university-dev/2024-spring-ab-go-hw-3-vlasashk/internal/storage/ports/httpchi/server.go (69.2%)</option>
+				
+				<option value="file10">github.com/central-university-dev/2024-spring-ab-go-hw-3-vlasashk/internal/storage/resources/container.go (80.8%)</option>
+				
+				<option value="file11">github.com/central-university-dev/2024-spring-ab-go-hw-3-vlasashk/internal/storage/storage.go (64.9%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package manager
+
+import (
+        "context"
+        "sync"
+
+        "github.com/central-university-dev/2024-spring-ab-go-hw-3-vlasashk/pkg/response"
+        "github.com/gorilla/websocket"
+        "github.com/rs/zerolog"
+)
+
+const workers = 5
+
+type Manager struct {
+        clients map[*websocket.Conn]struct{}
+        // mu for sync access to clients
+        mu *sync.RWMutex
+        // wsMu for sync write operation to WS
+        wsMu *sync.Mutex
+        log  zerolog.Logger
+}
+
+func New(log zerolog.Logger) *Manager <span class="cov8" title="1">{
+        return &amp;Manager{
+                clients: make(map[*websocket.Conn]struct{}),
+                mu:      &amp;sync.RWMutex{},
+                wsMu:    &amp;sync.Mutex{},
+                log:     log,
+        }
+}</span>
+
+func (m *Manager) Store(con *websocket.Conn) <span class="cov8" title="1">{
+        m.mu.Lock()
+        defer m.mu.Unlock()
+
+        m.clients[con] = struct{}{}
+}</span>
+
+func (m *Manager) WriteMsg(con *websocket.Conn, msg response.Msg) error <span class="cov8" title="1">{
+        m.wsMu.Lock()
+        defer m.wsMu.Unlock()
+
+        if err := con.WriteJSON(msg); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov8" title="1">return nil</span>
+}
+
+func (m *Manager) Release(con *websocket.Conn) <span class="cov8" title="1">{
+        m.mu.Lock()
+        defer m.mu.Unlock()
+
+        if err := con.Close(); err != nil </span><span class="cov0" title="0">{
+                m.log.Error().Err(err).Msg("failed to close ws client")
+        }</span>
+        <span class="cov8" title="1">delete(m.clients, con)</span>
+}
+
+// Broadcaster Single run of broadcast worker pool, exposing channel to share among all clients (supposed to be called only once)
+func (m *Manager) Broadcaster(ctx context.Context) chan&lt;- response.Msg <span class="cov8" title="1">{
+        data := make(chan response.Msg, workers)
+        for w := 0; w &lt; workers; w++ </span><span class="cov8" title="1">{
+                go m.broadcast(ctx, data)
+        }</span>
+        <span class="cov8" title="1">return data</span>
+}
+
+func (m *Manager) broadcast(ctx context.Context, messages &lt;-chan response.Msg) <span class="cov8" title="1">{
+        for </span><span class="cov8" title="1">{
+                select </span>{
+                case &lt;-ctx.Done():<span class="cov0" title="0">
+                        m.log.Error().Msg("BroadCast ctx deadline")
+                        return</span>
+                case msg, ok := &lt;-messages:<span class="cov8" title="1">
+                        if !ok </span><span class="cov0" title="0">{
+                                m.log.Error().Msg("BroadCast is dead")
+                                return
+                        }</span>
+                        <span class="cov8" title="1">m.mu.RLock()
+                        for con := range m.clients </span><span class="cov8" title="1">{
+                                if err := m.WriteMsg(con, msg); err != nil </span><span class="cov0" title="0">{
+                                        m.log.Error().Err(err).Send()
+                                }</span>
+                        }
+                        <span class="cov8" title="1">m.mu.RUnlock()</span>
+                }
+        }
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package rediska
+
+import (
+        "context"
+        "encoding/json"
+        "net"
+
+        "github.com/central-university-dev/2024-spring-ab-go-hw-3-vlasashk/config"
+        "github.com/central-university-dev/2024-spring-ab-go-hw-3-vlasashk/pkg/response"
+        "github.com/central-university-dev/2024-spring-ab-go-hw-3-vlasashk/pkg/utils"
+        "github.com/redis/go-redis/v9"
+)
+
+type Rediska struct {
+        Client     *redis.Client
+        MaxRecords int64
+        HeadSize   int64
+}
+
+func NewClient(cfg config.RedisAddr) (*Rediska, error) <span class="cov8" title="1">{
+
+        client := redis.NewClient(&amp;redis.Options{
+                Addr:     net.JoinHostPort(cfg.Host, cfg.Port),
+                Username: "",
+                Password: "",
+        })
+
+        return &amp;Rediska{
+                Client:     client,
+                MaxRecords: cfg.MaxRecords,
+                HeadSize:   cfg.HeadSize,
+        }, nil
+
+}</span>
+
+func (r Rediska) AddMessage(ctx context.Context, data []byte) error <span class="cov8" title="1">{
+        pipe := r.Client.Pipeline()
+
+        pipe.LPush(ctx, "chat", data)
+        pipe.LTrim(ctx, "chat", 0, r.MaxRecords)
+
+        _, err := pipe.Exec(ctx)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov8" title="1">return nil</span>
+}
+
+func (r Rediska) GetLastTen(ctx context.Context) ([]response.Msg, error) <span class="cov8" title="1">{
+        res := make([]response.Msg, 0, 10)
+
+        data, err := r.Client.LRange(ctx, "chat", 0, r.HeadSize-1).Result()
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">for _, v := range data </span><span class="cov8" title="1">{
+                var msg response.Msg
+                err = json.Unmarshal([]byte(v), &amp;msg)
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil, err
+                }</span>
+                <span class="cov8" title="1">res = append(res, msg)</span>
+        }
+
+        <span class="cov8" title="1">utils.FlipMessageOrder(res)
+
+        return res, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">package httpchi
+
+import (
+        "bytes"
+        "context"
+        "encoding/json"
+        "errors"
+        "fmt"
+        "net/http"
+        "time"
+        "unicode/utf8"
+
+        "github.com/central-university-dev/2024-spring-ab-go-hw-3-vlasashk/config"
+        "github.com/central-university-dev/2024-spring-ab-go-hw-3-vlasashk/internal/server/resources"
+        "github.com/central-university-dev/2024-spring-ab-go-hw-3-vlasashk/pkg/listener"
+        "github.com/central-university-dev/2024-spring-ab-go-hw-3-vlasashk/pkg/response"
+        "github.com/go-chi/render"
+        "github.com/gorilla/websocket"
+        "github.com/rs/zerolog"
+)
+
+var upgrader = websocket.Upgrader{
+        CheckOrigin: func(r *http.Request) bool <span class="cov8" title="1">{
+                return true
+        }</span>,
+}
+
+func HealthCheck(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        render.JSON(w, r, render.M{
+                "status": "ok",
+        })
+}</span>
+
+func EstablishWS(ctx context.Context, container *resources.Resources) http.HandlerFunc <span class="cov8" title="1">{
+        broadcast := container.ClientManager.Broadcaster(ctx)
+        return func(w http.ResponseWriter, r *http.Request) </span><span class="cov8" title="1">{
+                log := container.Log.With().Caller().Logger()
+
+                con, err := upgrader.Upgrade(w, r, nil)
+                if err != nil </span><span class="cov0" title="0">{
+                        log.Error().Err(err).Send()
+                        return
+                }</span>
+                // Doesn't run in goroutine to be able to catch panic by chi router
+                <span class="cov8" title="1">reader(ctx, con, container, broadcast)</span>
+        }
+}
+
+func reader(ctx context.Context, con *websocket.Conn, container *resources.Resources, broadcast chan&lt;- response.Msg) <span class="cov8" title="1">{
+        cm := container.ClientManager
+        log := container.Log
+        cache := container.RedisRepo
+        kafkaWriter := container.KafkaWriter
+
+        cm.Store(con)
+        defer func() </span><span class="cov8" title="1">{
+                cm.Release(con)
+                log.Info().Msg("connection released")
+        }</span>()
+        // Listens for first message from client that will indicate client's nickname
+        <span class="cov8" title="1">userID, err := registerUser(ctx, con, container.Cfg.Storage)
+        if err != nil </span><span class="cov0" title="0">{
+                log.Error().Err(err).Send()
+                return
+        }</span>
+        // Sends to client recent messages from chat (up to 10 messages)
+        <span class="cov8" title="1">outputRecent(ctx, log, cache, con, cm)
+        listen := listener.SocketListen(ctx, log, con)
+        for </span><span class="cov8" title="1">{
+                select </span>{
+                case &lt;-ctx.Done():<span class="cov0" title="0">
+                        log.Info().Msg("context was canceled")
+                        return</span>
+                case data, ok := &lt;-listen:<span class="cov8" title="1">
+
+                        if !ok </span><span class="cov8" title="1">{
+                                log.Error().Msg("connection died unexpectedly")
+                                return
+                        }</span>
+
+                        <span class="cov8" title="1">var msg response.Msg
+                        if err = json.Unmarshal(data, &amp;msg); err != nil </span><span class="cov0" title="0">{
+                                log.Error().Err(err).Msg("failed to unmarshal msg")
+                                continue</span>
+                        }
+                        <span class="cov8" title="1">msg.UserID = userID
+
+                        if err = storeMessage(ctx, log, cache, kafkaWriter, msg); err != nil </span><span class="cov0" title="0">{
+                                log.Error().Err(err)
+                                continue</span>
+                        }
+                        <span class="cov8" title="1">msg.Print()
+
+                        go func() </span><span class="cov8" title="1">{
+                                select </span>{
+                                case &lt;-ctx.Done():<span class="cov0" title="0">
+                                        return</span>
+                                case broadcast &lt;- msg:<span class="cov8" title="1">
+                                        return</span>
+                                }
+                        }()
+                }
+        }
+}
+
+func registerUser(ctx context.Context, con *websocket.Conn, addr config.StorageAddr) (int, error) <span class="cov8" title="1">{
+        mt, username, err := con.ReadMessage()
+        if err != nil || mt == websocket.CloseMessage </span><span class="cov0" title="0">{
+                return 0, err
+        }</span>
+
+        <span class="cov8" title="1">length := utf8.RuneCountInString(string(username))
+        if length == 0 || length &gt; 50 </span><span class="cov0" title="0">{
+                return 0, errors.New("username length is not supported")
+        }</span>
+
+        <span class="cov8" title="1">return sendRegisterRequest(ctx, addr, string(username))</span>
+}
+
+func sendRegisterRequest(ctx context.Context, addr config.StorageAddr, username string) (int, error) <span class="cov8" title="1">{
+        requestBody, err := json.Marshal(response.RegisterReq{Username: username})
+        if err != nil </span><span class="cov0" title="0">{
+                return 0, err
+        }</span>
+
+        <span class="cov8" title="1">req, err := http.NewRequestWithContext(ctx, "POST", fmt.Sprintf("http://%s:%s/register", addr.Host, addr.Port), bytes.NewBuffer(requestBody))
+        if err != nil </span><span class="cov0" title="0">{
+                return 0, err
+        }</span>
+        <span class="cov8" title="1">req.Header.Set("Content-Type", "application/json")
+
+        resp, err := (&amp;http.Client{}).Do(req)
+        if err != nil </span><span class="cov0" title="0">{
+                return 0, err
+        }</span>
+        <span class="cov8" title="1">defer resp.Body.Close()
+
+        var userID response.RegisterResp
+        if err = render.DecodeJSON(resp.Body, &amp;userID); err != nil </span><span class="cov0" title="0">{
+                return 0, err
+        }</span>
+
+        <span class="cov8" title="1">return userID.UserID, nil</span>
+}
+
+func outputRecent(ctx context.Context, log zerolog.Logger, repo resources.CacheRepo, con *websocket.Conn, cm resources.ClientManager) <span class="cov8" title="1">{
+        recentMessages, err := repo.GetLastTen(ctx)
+        if err != nil </span><span class="cov0" title="0">{
+                log.Error().Err(err).Msg("failed to get messages from db")
+                return
+        }</span>
+
+        <span class="cov8" title="1">for _, msg := range recentMessages </span><span class="cov8" title="1">{
+                if err := cm.WriteMsg(con, msg); err != nil </span><span class="cov0" title="0">{
+                        log.Error().Err(err).Msg("error on writing")
+                }</span>
+        }
+}
+
+func storeMessage(ctx context.Context, log zerolog.Logger, cache resources.CacheRepo, kafkaWriter resources.MessageBroker, msg response.Msg) error <span class="cov8" title="1">{
+        data, err := json.Marshal(msg)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov8" title="1">start := time.Now()
+        kafkaWriter.Write(ctx, data)
+        log.Info().Dur("kafka wrtie time", time.Since(start)).Send()
+
+        start = time.Now()
+        if err = cache.AddMessage(ctx, data); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov8" title="1">log.Info().Dur("redis wrtie time", time.Since(start)).Send()
+
+        return nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file3" style="display: none">package httpchi
+
+import (
+        "context"
+        "net"
+        "net/http"
+
+        "github.com/central-university-dev/2024-spring-ab-go-hw-3-vlasashk/internal/server/resources"
+        "github.com/go-chi/chi/v5"
+        "github.com/go-chi/chi/v5/middleware"
+)
+
+func NewServer(ctx context.Context, container *resources.Resources) *http.Server <span class="cov8" title="1">{
+        cfg := container.Cfg
+        return &amp;http.Server{
+                Addr:    net.JoinHostPort(cfg.Server.Host, cfg.Server.Port),
+                Handler: newRouter(ctx, container),
+        }
+}</span>
+
+func newRouter(ctx context.Context, container *resources.Resources) http.Handler <span class="cov8" title="1">{
+        r := chi.NewRouter()
+        r.Use(middleware.RequestID)
+        r.Use(middleware.Logger)
+        r.Use(middleware.URLFormat)
+        r.Use(middleware.CleanPath)
+        r.Use(middleware.Recoverer)
+        r.Get("/chat", EstablishWS(ctx, container))
+        r.Get("/healthz", HealthCheck)
+        return r
+}</span>
+</pre>
+		
+		<pre class="file" id="file4" style="display: none">package resources
+
+import (
+        "context"
+
+        "github.com/central-university-dev/2024-spring-ab-go-hw-3-vlasashk/config"
+        "github.com/central-university-dev/2024-spring-ab-go-hw-3-vlasashk/internal/server/adapters/manager"
+        "github.com/central-university-dev/2024-spring-ab-go-hw-3-vlasashk/internal/server/adapters/rediska"
+        "github.com/central-university-dev/2024-spring-ab-go-hw-3-vlasashk/pkg/kakafka"
+        "github.com/central-university-dev/2024-spring-ab-go-hw-3-vlasashk/pkg/logger"
+        "github.com/rs/zerolog"
+)
+
+type Resources struct {
+        Cfg           config.ServerCfg
+        Log           zerolog.Logger
+        ClientManager ClientManager
+        RedisRepo     CacheRepo
+        KafkaWriter   MessageBroker
+}
+
+func New(ctx context.Context, cfg config.ServerCfg) (*Resources, error) <span class="cov8" title="1">{
+        log, err := logger.New(cfg.LoggerLVL)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+
+        <span class="cov8" title="1">res := Resources{
+                Cfg:           cfg,
+                Log:           log,
+                ClientManager: manager.New(log),
+                KafkaWriter:   kakafka.NewProducer(ctx, cfg.Kafka, log),
+        }
+
+        repo, err := rediska.NewClient(res.Cfg.Redis)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">res.RedisRepo = repo
+
+        return &amp;res, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file5" style="display: none">package server
+
+import (
+        "context"
+        "errors"
+        "fmt"
+        "net"
+        "net/http"
+        "os/signal"
+        "syscall"
+        "time"
+
+        "github.com/central-university-dev/2024-spring-ab-go-hw-3-vlasashk/config"
+        "github.com/central-university-dev/2024-spring-ab-go-hw-3-vlasashk/internal/server/ports/httpchi"
+        "github.com/central-university-dev/2024-spring-ab-go-hw-3-vlasashk/internal/server/resources"
+        "golang.org/x/sync/errgroup"
+)
+
+func Run(ctx context.Context, cfg config.ServerCfg) error <span class="cov8" title="1">{
+        ctx, cancel := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
+        defer cancel()
+        g, gCtx := errgroup.WithContext(ctx)
+
+        container, err := resources.New(gCtx, cfg)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov8" title="1">srv := httpchi.NewServer(gCtx, container)
+
+        g.Go(func() error </span><span class="cov8" title="1">{
+                container.Log.Info().Msg(fmt.Sprintf("starting server: %s", net.JoinHostPort(cfg.Server.Host, cfg.Server.Port)))
+                if err = srv.ListenAndServe(); err != nil &amp;&amp; !errors.Is(err, http.ErrServerClosed) </span><span class="cov0" title="0">{
+                        return err
+                }</span>
+                <span class="cov0" title="0">return nil</span>
+        })
+
+        <span class="cov8" title="1">&lt;-gCtx.Done()
+        container.Log.Info().Msg("Got interruption signal")
+
+        // Additional timeout for shutting down process
+        ctxDown, cancelDown := context.WithTimeout(context.Background(), 10*time.Second)
+        defer cancelDown()
+
+        if err = srv.Shutdown(ctxDown); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov0" title="0">if err = g.Wait(); err != nil </span><span class="cov0" title="0">{
+                container.Log.Error().Err(err).Send()
+        }</span>
+        <span class="cov0" title="0">container.Log.Info().Msg("server was gracefully shut down")
+
+        return nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file6" style="display: none">package pgrepo
+
+import (
+        "context"
+        "fmt"
+        "time"
+
+        "github.com/central-university-dev/2024-spring-ab-go-hw-3-vlasashk/config"
+        "github.com/central-university-dev/2024-spring-ab-go-hw-3-vlasashk/migrations"
+        "github.com/jackc/pgx/v5"
+        "github.com/jackc/pgx/v5/pgxpool"
+        "github.com/rs/zerolog"
+)
+
+type PgRepo struct {
+        Pool *pgxpool.Pool
+}
+
+type tracer struct {
+        log zerolog.Logger
+}
+
+var timeout = 10 * time.Second
+
+func New(ctx context.Context, cfg config.RepoCfg, logger zerolog.Logger) (*PgRepo, error) <span class="cov8" title="1">{
+        url := fmt.Sprintf("%s://%s:%s@%s:%s/%s", cfg.Schema, cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.Name)
+
+        ctx, cancel := context.WithTimeout(ctx, timeout)
+        defer cancel()
+
+        pgxCfg, err := pgxpool.ParseConfig(url)
+
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("config parse error: %v", err)
+        }</span>
+
+        <span class="cov8" title="1">pgxCfg.ConnConfig.Tracer = &amp;tracer{log: logger}
+
+        dbPool, err := pgxpool.NewWithConfig(ctx, pgxCfg)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("unable to create connection pool: %v", err)
+        }</span>
+
+        <span class="cov8" title="1">if err = dbPool.Ping(ctx); err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("unable to ping connection pool: %v", err)
+        }</span>
+
+        <span class="cov8" title="1">if err = migrations.Up(dbPool, cfg.MigrationPath); err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to migrate db: %v", err)
+        }</span>
+
+        <span class="cov8" title="1">return &amp;PgRepo{dbPool}, nil</span>
+}
+
+func (t *tracer) TraceQueryStart(ctx context.Context, _ *pgx.Conn, data pgx.TraceQueryStartData) context.Context <span class="cov8" title="1">{
+        t.log.Info().Str("sql", data.SQL).Any("args", data.Args).Msg("Executing command")
+        return ctx
+}</span>
+
+func (t *tracer) TraceQueryEnd(_ context.Context, _ *pgx.Conn, _ pgx.TraceQueryEndData) {<span class="cov8" title="1">
+}</span>
+</pre>
+		
+		<pre class="file" id="file7" style="display: none">package pgrepo
+
+import (
+        "context"
+        "time"
+
+        "github.com/rs/zerolog/log"
+)
+
+const (
+        addMsgQuery  = `INSERT INTO messages (user_id, content) VALUES ($1, $2);`
+        addUserQuery = `INSERT INTO users (username) VALUES ($1) RETURNING user_id;`
+)
+
+func (pg PgRepo) AddMessage(ctx context.Context, userID int, msg string) error <span class="cov8" title="1">{
+        start := time.Now()
+        if _, err := pg.Pool.Exec(ctx, addMsgQuery, userID, msg); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov8" title="1">log.Info().Dur("postgres msg add time", time.Since(start)).Send()
+        return nil</span>
+}
+
+func (pg PgRepo) AddUser(ctx context.Context, UserName string) (int, error) <span class="cov8" title="1">{
+        var userID int
+        start := time.Now()
+        if err := pg.Pool.QueryRow(ctx, addUserQuery, UserName).Scan(&amp;userID); err != nil </span><span class="cov0" title="0">{
+                return 0, err
+        }</span>
+        <span class="cov8" title="1">log.Info().Dur("postgres user add time", time.Since(start)).Send()
+        return userID, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file8" style="display: none">package processor
+
+import (
+        "context"
+        "encoding/json"
+
+        "github.com/central-university-dev/2024-spring-ab-go-hw-3-vlasashk/internal/storage/usecase"
+        "github.com/central-university-dev/2024-spring-ab-go-hw-3-vlasashk/pkg/kakafka"
+        "github.com/central-university-dev/2024-spring-ab-go-hw-3-vlasashk/pkg/response"
+        "github.com/rs/zerolog"
+)
+
+type KafkaProc struct {
+        consumer *kakafka.Consumer
+        logger   zerolog.Logger
+        repo     usecase.Repo
+}
+
+func NewProcessor(consumer *kakafka.Consumer, logger zerolog.Logger, repo usecase.Repo) *KafkaProc <span class="cov8" title="1">{
+        return &amp;KafkaProc{
+                consumer: consumer,
+                logger:   logger,
+                repo:     repo,
+        }
+}</span>
+
+func (p *KafkaProc) ProcessEvents(ctx context.Context) error <span class="cov8" title="1">{
+        for </span><span class="cov8" title="1">{
+                select </span>{
+                case &lt;-ctx.Done():<span class="cov0" title="0">
+                        return nil</span>
+                case msg, ok := &lt;-p.consumer.Messages:<span class="cov8" title="1">
+                        if !ok </span><span class="cov0" title="0">{
+                                return nil
+                        }</span>
+                        <span class="cov8" title="1">var userMsg response.Msg
+                        if err := json.Unmarshal(msg.Value, &amp;userMsg); err != nil </span><span class="cov0" title="0">{
+                                p.logger.Error().Err(err).Send()
+                                if err = p.consumer.Commiter(ctx, msg); err != nil </span><span class="cov0" title="0">{
+                                        p.logger.Error().Err(err).Send()
+                                        return err
+                                }</span>
+                                <span class="cov0" title="0">continue</span>
+                        }
+
+                        <span class="cov8" title="1">if userMsg.UserID == 0 </span><span class="cov0" title="0">{
+                                p.logger.Error().Msg("user ID was not provided in the message")
+                                if err := p.consumer.Commiter(ctx, msg); err != nil </span><span class="cov0" title="0">{
+                                        return err
+                                }</span>
+                                <span class="cov0" title="0">continue</span>
+                        }
+
+                        <span class="cov8" title="1">if err := p.repo.AddMessage(ctx, userMsg.UserID, userMsg.Text); err != nil </span><span class="cov0" title="0">{
+                                p.logger.Error().Err(err).Send()
+                        }</span>
+                        <span class="cov8" title="1">if err := p.consumer.Commiter(ctx, msg); err != nil </span><span class="cov0" title="0">{
+                                return err
+                        }</span>
+                }
+        }
+}
+</pre>
+		
+		<pre class="file" id="file9" style="display: none">package httpchi
+
+import (
+        "context"
+        "net"
+        "net/http"
+
+        "github.com/central-university-dev/2024-spring-ab-go-hw-3-vlasashk/config"
+        "github.com/central-university-dev/2024-spring-ab-go-hw-3-vlasashk/internal/storage/usecase"
+        "github.com/central-university-dev/2024-spring-ab-go-hw-3-vlasashk/pkg/response"
+        "github.com/go-chi/chi/v5"
+        "github.com/go-chi/chi/v5/middleware"
+        "github.com/go-chi/render"
+        "github.com/rs/zerolog/log"
+)
+
+func New(ctx context.Context, cfg config.StorageAddr, repo usecase.Repo) *http.Server <span class="cov8" title="1">{
+        r := chi.NewRouter()
+
+        r.Use(middleware.RequestID)
+        r.Use(middleware.Logger)
+        r.Use(middleware.URLFormat)
+        r.Use(middleware.CleanPath)
+        r.Use(middleware.Recoverer)
+
+        r.Get("/healthz", HealthCheck)
+        r.Post("/register", RegisterUser(ctx, repo))
+
+        return &amp;http.Server{
+                Addr:    net.JoinHostPort(cfg.Host, cfg.Port),
+                Handler: r,
+        }
+}</span>
+
+func HealthCheck(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        render.JSON(w, r, render.M{
+                "status": "ok",
+        })
+}</span>
+
+func RegisterUser(ctx context.Context, repo usecase.Repo) func(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        return func(w http.ResponseWriter, r *http.Request) </span><span class="cov8" title="1">{
+                var userReq response.RegisterReq
+                if err := render.DecodeJSON(r.Body, &amp;userReq); err != nil </span><span class="cov0" title="0">{
+                        log.Error().Err(err).Msg("error decoding body")
+                        render.Status(r, http.StatusBadRequest)
+                        render.JSON(w, r, response.ErrResp{Error: "bad json"})
+                        return
+                }</span>
+
+                <span class="cov8" title="1">userID, err := repo.AddUser(ctx, userReq.Username)
+                if err != nil </span><span class="cov0" title="0">{
+                        log.Error().Err(err).Msg("error decoding body")
+                        render.Status(r, http.StatusInternalServerError)
+                        render.JSON(w, r, response.ErrResp{Error: "failed to register"})
+                        return
+                }</span>
+
+                <span class="cov8" title="1">resp := response.RegisterResp{UserID: userID}
+                render.Status(r, http.StatusCreated)
+                render.JSON(w, r, resp)</span>
+        }
+}
+</pre>
+		
+		<pre class="file" id="file10" style="display: none">package resources
+
+import (
+        "context"
+        "net/http"
+        "sync"
+
+        "github.com/central-university-dev/2024-spring-ab-go-hw-3-vlasashk/config"
+        "github.com/central-university-dev/2024-spring-ab-go-hw-3-vlasashk/internal/storage/adapters/pgrepo"
+        "github.com/central-university-dev/2024-spring-ab-go-hw-3-vlasashk/internal/storage/ports/httpchi"
+        "github.com/central-university-dev/2024-spring-ab-go-hw-3-vlasashk/internal/storage/usecase"
+        "github.com/central-university-dev/2024-spring-ab-go-hw-3-vlasashk/pkg/kakafka"
+        "github.com/central-university-dev/2024-spring-ab-go-hw-3-vlasashk/pkg/logger"
+        "github.com/rs/zerolog"
+)
+
+type resource[T any] struct {
+        sync.Once
+        value   T
+        initErr error
+}
+
+type Container struct {
+        logger      *resource[zerolog.Logger]
+        httpServ    *resource[*http.Server]
+        pgRepo      *resource[usecase.Repo]
+        kafkaReader *resource[*kakafka.Consumer]
+}
+
+func New() *Container <span class="cov8" title="1">{
+        return &amp;Container{
+                logger:      &amp;resource[zerolog.Logger]{},
+                httpServ:    &amp;resource[*http.Server]{},
+                pgRepo:      &amp;resource[usecase.Repo]{},
+                kafkaReader: &amp;resource[*kakafka.Consumer]{},
+        }
+}</span>
+
+func (c *resource[T]) get(init func() (T, error)) (T, error) <span class="cov8" title="1">{
+        c.Do(func() </span><span class="cov8" title="1">{
+                c.value, c.initErr = init()
+        }</span>)
+        <span class="cov8" title="1">if c.initErr != nil </span><span class="cov0" title="0">{
+                return *new(T), c.initErr
+        }</span>
+        <span class="cov8" title="1">return c.value, nil</span>
+}
+
+func (r *Container) GetHttp(ctx context.Context, cfg config.StorageConfig) (*http.Server, error) <span class="cov8" title="1">{
+        repo, err := r.GetRepo(ctx, cfg)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+
+        <span class="cov8" title="1">return r.httpServ.get(func() (*http.Server, error) </span><span class="cov8" title="1">{
+                return httpchi.New(ctx, cfg.HTTP, repo), nil
+        }</span>)
+}
+
+func (r *Container) GetLogger(lvl string) (zerolog.Logger, error) <span class="cov8" title="1">{
+        return r.logger.get(func() (zerolog.Logger, error) </span><span class="cov8" title="1">{
+                return logger.New(lvl)
+        }</span>)
+}
+
+func (r *Container) GetRepo(ctx context.Context, cfg config.StorageConfig) (usecase.Repo, error) <span class="cov8" title="1">{
+        log, err := r.GetLogger(cfg.LoggerLVL)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+
+        <span class="cov8" title="1">return r.pgRepo.get(func() (usecase.Repo, error) </span><span class="cov8" title="1">{
+                repo, err := pgrepo.New(ctx, cfg.Repo, log)
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil, err
+                }</span>
+                <span class="cov8" title="1">return repo, nil</span>
+        })
+}
+
+func (r *Container) GetKafkaConsumer(ctx context.Context, cfg config.StorageConfig) (*kakafka.Consumer, error) <span class="cov8" title="1">{
+        log, err := r.GetLogger(cfg.LoggerLVL)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+
+        <span class="cov8" title="1">return r.kafkaReader.get(func() (*kakafka.Consumer, error) </span><span class="cov8" title="1">{
+                return kakafka.NewConsumer(ctx, log, cfg.Kafka), nil
+        }</span>)
+}
+</pre>
+		
+		<pre class="file" id="file11" style="display: none">package storage
+
+import (
+        "context"
+        "errors"
+        "fmt"
+        "net"
+        "net/http"
+        "os/signal"
+        "syscall"
+        "time"
+
+        "github.com/central-university-dev/2024-spring-ab-go-hw-3-vlasashk/config"
+        "github.com/central-university-dev/2024-spring-ab-go-hw-3-vlasashk/internal/storage/adapters/processor"
+        "github.com/central-university-dev/2024-spring-ab-go-hw-3-vlasashk/internal/storage/resources"
+        "golang.org/x/sync/errgroup"
+)
+
+func Run(ctx context.Context, cfg config.StorageConfig) error <span class="cov8" title="1">{
+        ctx, cancel := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
+        defer cancel()
+        g, gCtx := errgroup.WithContext(ctx)
+
+        container := resources.New()
+
+        log, err := container.GetLogger(cfg.LoggerLVL)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov8" title="1">srv, err := container.GetHttp(gCtx, cfg)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov8" title="1">repo, err := container.GetRepo(ctx, cfg)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov8" title="1">kafkaConsumer, err := container.GetKafkaConsumer(gCtx, cfg)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov8" title="1">g.Go(kafkaConsumer.Run)
+        g.Go(func() error </span><span class="cov8" title="1">{
+                log.Info().Msg("starting processing kafka events")
+                if err = processor.NewProcessor(kafkaConsumer, log, repo).ProcessEvents(gCtx); err != nil </span><span class="cov0" title="0">{
+                        return err
+                }</span>
+                <span class="cov0" title="0">return nil</span>
+        })
+        <span class="cov8" title="1">g.Go(func() error </span><span class="cov8" title="1">{
+                log.Info().Msg(fmt.Sprintf("starting server: %s", net.JoinHostPort(cfg.HTTP.Host, cfg.HTTP.Port)))
+                if err = srv.ListenAndServe(); err != nil &amp;&amp; !errors.Is(err, http.ErrServerClosed) </span><span class="cov0" title="0">{
+                        return err
+                }</span>
+                <span class="cov0" title="0">return nil</span>
+        })
+
+        <span class="cov8" title="1">&lt;-gCtx.Done()
+        log.Info().Msg("Got interruption signal")
+
+        // Additional timeout for shutting down process
+        ctxDown, cancelDown := context.WithTimeout(context.Background(), 10*time.Second)
+        defer cancelDown()
+
+        if err = srv.Shutdown(ctxDown); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov0" title="0">if err = g.Wait(); err != nil </span><span class="cov0" title="0">{
+                log.Error().Err(err).Send()
+        }</span>
+        <span class="cov0" title="0">log.Info().Msg("server was gracefully shut down")
+
+        return nil</span>
+}
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

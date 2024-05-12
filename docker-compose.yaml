@@ -1,0 +1,146 @@
+version: '3.8'
+services:
+  chat_db:
+    image: postgres:latest
+    user: postgres
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    volumes:
+      - chat_data:/var/lib/postgresql/chat_data
+    networks:
+      - backend
+
+  cache:
+    image: redis:latest
+    restart: always
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "--raw", "incr", "ping" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    command: redis-server --save 60 1 --loglevel warning
+    networks:
+      - backend
+
+  server:
+    build:
+      context: .
+      dockerfile: cmd/server/Dockerfile
+    restart: always
+    ports:
+      - "8080:8080"
+    env_file:
+      - ./config/.env
+    depends_on:
+      storage:
+        condition: service_healthy
+      cache:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--quiet", "server:8080/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - backend
+
+  storage:
+    build:
+      context: .
+      dockerfile: cmd/storage/Dockerfile
+    restart: always
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./config/.env
+    depends_on:
+      chat_db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--quiet", "storage:8000/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - backend
+
+  zookeeper:
+    image: zookeeper
+    restart: always
+    ports:
+      - "2181:2181"
+    healthcheck:
+      test: [ "CMD", "echo", "ruok", "|", "nc", "localhost", "2181" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - backend
+
+  kafka:
+    image: bitnami/kafka
+    ports:
+      - "9092:9092"
+    expose:
+      - '29092'
+    environment:
+      KAFKA_ADVERTISED_LISTENERS: INSIDE://kafka:29092,OUTSIDE://localhost:9092
+      KAFKA_LISTENERS: INSIDE://0.0.0.0:29092,OUTSIDE://0.0.0.0:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INSIDE:PLAINTEXT,OUTSIDE:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INSIDE
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false'
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: '1'
+      KAFKA_MIN_IN_SYNC_REPLICAS: '1'
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "kafka-topics.sh", "--bootstrap-server", "localhost:9092", "--list" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - backend
+
+  init-kafka:
+    image: bitnami/kafka
+    depends_on:
+      kafka:
+        condition: service_healthy
+    entrypoint: [ '/bin/sh', '-c' ]
+    command: |
+      "
+      kafka-topics.sh --bootstrap-server kafka:29092 --list
+
+      kafka-topics.sh --bootstrap-server kafka:29092 --create --if-not-exists --replication-factor 1 --partitions 3 --topic chat
+
+      echo -e 'Successfully created the following topics:'
+      kafka-topics.sh --bootstrap-server kafka:29092 --list
+      "
+    networks:
+      - backend
+
+volumes:
+  chat_data:
+
+networks:
+  backend:
+    driver: bridge
