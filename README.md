@@ -18,7 +18,7 @@ cd websocket-chat
          ```
          make run_client
          ```
-3. Test:
+3. Tests with coverage:
 ```
 make test_server
 ```
