@@ -35,6 +35,8 @@ sequenceDiagram
     participant P as Postgres DB
 
     C->>+S: Connect via Websocket
+    S->>+SS: HTTP /register
+    SS-->>-S: Confirm registration
     S->>+R: Fetch last 10 messages from cache
     R-->>-S: Return messages
     S-->>-C: Send last 10 cached messages
@@ -47,9 +49,6 @@ sequenceDiagram
         K->>+SS: Pass message to Storage Service
         SS->>+P: Store message in Postgres
     end
-
-    C->>+SS: HTTP /register
-    SS-->>-C: Confirm registration
 
     note over S: Caches last 10 messages
 ```
