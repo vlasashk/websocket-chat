@@ -38,7 +38,7 @@ sequenceDiagram
     S->>+SS: HTTP /register
     SS->>+P: Store user nickname
     P-->>-SS: Return user ID
-    SS-->>-S: Confirm registration
+    SS-->>-S: Return user ID
     S->>+R: Fetch last 10 messages from cache
     R-->>-S: Return messages
     S-->>-C: Send last 10 cached messages
