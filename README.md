@@ -36,6 +36,8 @@ sequenceDiagram
 
     C->>+S: Connect via Websocket
     S->>+SS: HTTP /register
+    SS->>+P: Store user nickname
+    P-->>-SS: Return user ID
     SS-->>-S: Confirm registration
     S->>+R: Fetch last 10 messages from cache
     R-->>-S: Return messages
@@ -46,7 +48,7 @@ sequenceDiagram
         S->>+R: Cache message
         R-->>-S: Confirm cache update
         S->>+K: Forward message to Kafka
-        S->>+C: Broadcast message to all clients
+        S-->>-C: Broadcast message to all clients
         K->>+SS: Pass message to Storage Service
         SS->>+P: Store message in Postgres
     end
