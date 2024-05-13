@@ -46,6 +46,7 @@ sequenceDiagram
         S->>+R: Cache message
         R-->>-S: Confirm cache update
         S->>+K: Forward message to Kafka
+        S->>+C: Broadcast message to all clients
         K->>+SS: Pass message to Storage Service
         SS->>+P: Store message in Postgres
     end
